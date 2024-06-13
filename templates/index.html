@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+
+<html lang="en">
+    <head>
+        <!-- Get Bootstrap -->
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+
+        <!-- Get Google Fonts -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;700&display=swap" rel="stylesheet">
+
+        <!-- CSS -->
+        <link rel="stylesheet" href="static/styles.css">
+
+        <!-- favicon -->
+        <link href="/static/favicon.ico" rel="icon">
+
+        <title>Weather Face</title>
+    </head>
+
+    <body>
+        <h1>Hello, Weather!</h1>
+
+        <div id="forms">
+          <form id="formLocation" onsubmit="return false">
+              <label class="form-label">Enter Location</label>
+              <input class="form-control w-25 mb-2" autocomplete="off" id="inputLocation" name="inputLocation" placeholder="Zip or City" type="text" required>
+              <button type="submit" class="btn btn-dark">Submit</button>
+          </form>
+        </div>
+
+        <!-- Display the fetched location and temperature data from the weather API -->
+        <div id="feedback" class="my-4">
+          <p id="pLoc" class="my-1">
+            Your location:
+          </p>
+
+          <p id="pTemp">
+            Your temperature:
+          </p>
+        </div>
+
+        <!-- Rive Canvas -->
+        <canvas id="canvas" width="350" height="350"></canvas>
+
+        <p></p>
+
+        <!-- For those who just want to have fun. A bootstrap accordion element to manually enter in temperature values and see the animations change -->
+        <div class="accordion w-25" id="accordionExample">
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button bg-light text-body" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                Play Around
+              </button>
+            </h2>
+            <div id="collapseOne" class="accordion-collapse collapse" data-bs-parent="#accordionExample">
+              <div class="accordion-body">
+                <form onsubmit="return false">
+                  <label class="form-label">Enter Temperature</label>
+                  <input class="form-control mb-2" autocomplete="off" id="tempInput" name="temp" placeholder="Temperature in °F" type="text" required>
+                  <button type="submit" class="btn btn-dark" id="tempSubmit">Submit</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Use the Rive web runtime libraries-->
+        <script src="https://unpkg.com/@rive-app/canvas@2.7.7"></script>
+        <script>
+
+            // Global variables
+            let temp = null;
+            let userLocation = null;
+            let locForm = document.querySelector('#formLocation');
+            let input = document.querySelector('input');
+            let manualTemp = document.querySelector('#tempInput');
+            let manualSubmit = document.querySelector('#tempSubmit');
+            let locText = document.querySelector('#pLoc');
+            let tempText = document.querySelector('#pTemp')
+            let lat = 0;
+            let long = 0;
+
+            // Initialize the Rive object
+            const r = new rive.Rive({
+              src: "/static/weatherface.riv",
+              canvas: document.getElementById("canvas"),
+              autoplay: true,
+              stateMachines: "State Machine 1",
+              onLoad: () => {
+                r.resizeDrawingSurfaceToCanvas();
+                const inputs = r.stateMachineInputs('State Machine 1');
+                const tempInput = inputs.find(i => i.name === 'temp');
+
+                // Run the app's primary functions after submitting the location form
+                locForm.addEventListener('submit', function(){
+
+                  // Geocode API url and parameters
+                  const geoBaseUrl = 'https://geocoding-api.open-meteo.com/v1/search?count=1';
+                  const geoParams = {
+                    name: input.value,
+                  };
+
+                  // Convert query parameters to a string
+                  const geoParamsString = new URLSearchParams(geoParams).toString();
+
+                  // Combine API endpoint with query parameters
+                  const geoFullUrl = `${geoBaseUrl}&${geoParamsString}`;
+
+                  // Fetch geolocation API
+                  fetch(geoFullUrl)
+                    .then(response => {
+                      if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                      }
+                      return response.json();
+                    })
+                    .then(geoData => {
+                      // Process the retrieved user data to get latitude, longitude, and location name
+                      lat = geoData["results"][0]["latitude"];
+                      long = geoData["results"][0]["longitude"];
+                      userLocation = geoData["results"][0]["name"];
+                      console.log('Geo Data:', lat, long);
+
+                      // Weather API url and parameters
+                      const weatherBaseUrl = 'https://api.open-meteo.com/v1/forecast?&current=temperature_2m&temperature_unit=fahrenheit&timezone=America%2FNew_York';
+                      const weatherParams = {
+                        latitude: lat,
+                        longitude: long,
+                      };
+
+                      // Convert weather query parameters to a string
+                      const weatherParamsString = new URLSearchParams(weatherParams).toString();
+
+                      // Combine API endpoint with query parameters
+                      const weatherFullUrl = `${weatherBaseUrl}&${weatherParamsString}`;
+
+                      // Fetch weather API
+                      return fetch(weatherFullUrl)
+                    })
+                    .then(response => {
+                      if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                      }
+                      return response.json();
+                    })
+                    .then(weatherData => {
+                      // Process the retrieved weather data to get current temperature
+                      temp = weatherData['current']['temperature_2m'];
+                      console.log('Weather Data:', temp);
+                      locText.style.color = 'black';
+                      tempText.style.color = 'black';
+                      locText.innerHTML = 'Your location:' + ' ' + userLocation;
+                      tempText.innerHTML = 'Your temperature:' + ' ' + temp;
+                      riveCheck(temp);
+                    })
+                    .catch(error => {
+                      console.error('Error:', error);
+                    });
+
+                })
+
+                // Add event listener to the Submit button in the manual temp form
+                manualSubmit.addEventListener('click', function(){
+                  temp = manualTemp.value;
+                  console.log(temp);
+                  riveCheck(temp);
+                })
+
+                // Function declaration for setting the "temp" in put in the Rive state machine
+                function riveCheck(temp) {
+                  if (temp == null){
+                    return;
+                  }
+                  else{
+                    tempInput.value = temp;
+                  }
+                }
+              }
+            })
+        </script>
+
+    </body>
+
+</html>

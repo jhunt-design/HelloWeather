@@ -1,0 +1,22 @@
+body {
+    font-family: 'Kanit', serif;
+    font-weight: 300;
+    font-size: 20px;
+    margin-top: 20px;
+    margin-left: 40px
+}
+
+h1 {
+    font-weight: 700;
+    font-size: 48px;
+}
+
+button {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+p {
+    color: #bbbbbb;
+    font-size: 16px;
+}
